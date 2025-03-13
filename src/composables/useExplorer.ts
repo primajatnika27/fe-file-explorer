@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import type { Folder } from "../types/explorer";
+import type { Folder, RootNavigation } from "../types/explorer";
 import { explorerService } from "../services/api";
 
 export function useExplorer() {
@@ -8,100 +8,107 @@ export function useExplorer() {
   const error = ref<string | null>(null);
   const selectedFolder = ref<string | null>(null);
   const selectedItem = ref<string | null>(null);
+  const currentFolderData = ref<Folder | null>(null);
 
-  // Computed properties
-  const rootFolders = computed(() =>
-    folders.value.filter((folder) => folder.parentId === null)
-  );
+  const findFolderById = async (id: string): Promise<Folder | null> => {
+    try {
+      const response = await explorerService.getFolderDetail(id);
+      if (response.success && response.data) {
+        console.log(response.data);
+        currentFolderData.value = response.data;
 
-  const findFolderById = (id: string, folderList: Folder[]): Folder | null => {
-    for (const folder of folderList) {
-      if (folder.id === id) return folder;
-      if (folder.subFolders.length > 0) {
-        const found = findFolderById(id, folder.subFolders);
-        if (found) return found;
+        // Return the folder data which includes subFolders and files
+        return {
+          id: response.data.id,
+          name: response.data.name,
+          parentId: response.data.parentId,
+          subFolders: response.data.subFolders || [],
+          files: response.data.files || [],
+          rootNavigation: response.data.rootNavigation || [],
+        };
       }
+      return null;
+    } catch (error) {
+      console.error("Error fetching folder:", error);
+      return null;
     }
-    return null;
   };
 
-  const currentFolder = computed(() => {
-    if (!selectedFolder.value) return null;
-    return findFolderById(selectedFolder.value, folders.value);
-  });
+  const fetchCurrentFolder = async () => {
+    console.log("selectedFolder", selectedFolder.value);
 
-  const getFolderPath = (folderId: string | null): Folder[] => {
-    const path: Folder[] = [];
-    let currentId = folderId;
-
-    while (currentId) {
-      const folder = findFolderById(currentId, folders.value);
-      if (folder) {
-        path.unshift(folder);
-        currentId = folder.parentId;
-      } else {
-        break;
-      }
+    if (!selectedFolder.value) {
+      currentFolderData.value = null;
+      return;
     }
 
-    return path;
-  };
-
-  const currentPath = computed(() => {
-    if (!selectedFolder.value) return [];
-    return getFolderPath(selectedFolder.value);
-  });
-
-  // Actions
-  const fetchFolders = async () => {
     loading.value = true;
     error.value = null;
     try {
-      const response = await explorerService.getFolders();
-      folders.value = response.data;
+      const folder = await findFolderById(selectedFolder.value);
+      console.log("folder", folder);
+
+      currentFolderData.value = folder;
     } catch (err) {
       error.value =
-        err instanceof Error
-          ? err.message
-          : "An error occurred while fetching folders";
-      console.error("Error fetching folders:", err);
+        err instanceof Error ? err.message : "Failed to fetch folder";
+      currentFolderData.value = null;
     } finally {
       loading.value = false;
     }
   };
 
-  const handleFolderClick = (id: string) => {
-    const folder = findFolderById(id, folders.value);
-    if (folder) {
-      selectedFolder.value = id;
-      selectedItem.value = id;
+  const currentFolder = computed(() => currentFolderData.value);
+
+  const rootFolders = computed(() => folders.value);
+
+  const currentPath = computed(() => {
+    const path: (RootNavigation | Folder)[] = [];
+    if (currentFolderData.value?.rootNavigation) {
+      path.push(...currentFolderData.value.rootNavigation);
+    }
+    return path;
+  });
+
+  const fetchFolders = async () => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await explorerService.getFolders();
+      if (response.success) {
+        folders.value = response.data;
+      }
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : "Failed to fetch folders";
+      folders.value = [];
+    } finally {
+      loading.value = false;
     }
   };
 
-  const handleItemClick = (id: string) => {
-    const folder = findFolderById(id, folders.value);
-    if (folder) {
-      selectedFolder.value = id;
-    }
+  const handleFolderClick = async (id: string) => {
+    selectedFolder.value = id;
     selectedItem.value = id;
+    await fetchCurrentFolder();
+  };
+
+  const handleItemClick = async (id: string) => {
+    selectedItem.value = id;
+    await handleFolderClick(id);
   };
 
   return {
-    // State
-    folders,
     loading,
     error,
-    selectedFolder,
-    selectedItem,
-
-    // Computed
     rootFolders,
     currentFolder,
     currentPath,
-
-    // Methods
+    findFolderById,
     fetchFolders,
     handleFolderClick,
     handleItemClick,
+    selectedFolder,
+    selectedItem,
   };
 }

@@ -8,12 +8,18 @@ export interface File {
   size: number;
 }
 
+export interface RootNavigation {
+  id: string;
+  name: string;
+}
+
 export interface Folder {
   name: string;
   id: string;
   parentId: string | null;
   subFolders: Folder[];
   files: File[];
+  rootNavigation: RootNavigation[];
 }
 
 export interface ExplorerResponse<T = Folder[]> {

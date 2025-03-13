@@ -33,12 +33,14 @@ class ExplorerService {
     }
   }
 
-  async getSubFolders(id: string): Promise<ExplorerResponse<Folder[]>> {
+  async getFolderDetail(id: string): Promise<ExplorerResponse<Folder>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/folders/${id}`);
+      const data = await this.fetchWithError<Folder>(
+        `${API_BASE_URL}/folders/${id}`
+      );
       return data;
     } catch (error) {
-      console.error("Error fetching subfolders:", error);
+      console.error("Error fetching folder detail:", error);
       throw error;
     }
   }

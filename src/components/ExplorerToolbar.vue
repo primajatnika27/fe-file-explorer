@@ -43,16 +43,9 @@ async function createFolder() {
       <v-btn prepend-icon="mdi-refresh" variant="text" @click="emit('refresh')" :loading="loading">
         Refresh
       </v-btn>
-      <v-spacer></v-spacer>
-      <v-text-field
-        density="compact"
-        hide-details
-        placeholder="Search files"
-        prepend-inner-icon="mdi-magnify"
-        variant="solo-filled"
-        class="mx-2"
-        style="max-width: 300px"
-      ></v-text-field>
+      <v-spacer />
+      <v-text-field density="compact" hide-details placeholder="Search files" prepend-inner-icon="mdi-magnify"
+        variant="solo-filled" class="mx-2" style="max-width: 300px" />
     </v-toolbar>
 
     <!-- New Folder Dialog -->
@@ -60,22 +53,13 @@ async function createFolder() {
       <v-card>
         <v-card-title>Create New Folder</v-card-title>
         <v-card-text>
-          <v-text-field
-            v-model="newFolderName"
-            label="Folder Name"
-            :error-messages="error"
-            @keyup.enter="createFolder"
-          ></v-text-field>
+          <v-text-field v-model="newFolderName" label="Folder Name" :error-messages="error"
+            @keyup.enter="createFolder"></v-text-field>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="grey" variant="text" @click="dialog = false">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            :loading="isCreating"
-            :disabled="!newFolderName"
-            @click="createFolder"
-          >
+          <v-btn color="primary" :loading="isCreating" :disabled="!newFolderName" @click="createFolder">
             Create
           </v-btn>
         </v-card-actions>

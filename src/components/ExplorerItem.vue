@@ -32,23 +32,34 @@ const iconColor = computed(() => props.isFolder ? 'amber' : 'grey');
 <template>
   <v-list-item
     :active="isSelected"
-    @click="emit('click')"
     class="explorer-item"
+    @click="emit('click')"
   >
-    <template v-slot:prepend>
-      <v-icon :color="iconColor" :icon="icon" />
+    <template #prepend>
+      <v-icon
+        :color="iconColor"
+        :icon="icon"
+      />
     </template>
 
     <v-list-item-title class="text-truncate">
       {{ name }}
     </v-list-item-title>
 
-    <template v-slot:append>
-      <div class="d-none d-sm-flex align-center">
-        <span v-if="modified" class="text-caption text-medium-emphasis me-4">
+    <template #append>
+      <div
+        class="d-none d-sm-flex align-center"
+      >
+        <span
+          v-if="modified"
+          class="text-caption text-medium-emphasis me-4">
           {{ modified }}
         </span>
-        <span v-if="size !== undefined" class="text-caption text-medium-emphasis text-right" style="min-width: 70px">
+        <span
+          v-if="size !== undefined"
+          class="text-caption text-medium-emphasis text-right"
+          style="min-width: 70px"
+        >
           {{ formatSize(size) }}
         </span>
       </div>
