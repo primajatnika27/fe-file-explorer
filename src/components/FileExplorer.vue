@@ -70,6 +70,29 @@ const previewError = ref("");
 const previewUrl = ref("");
 const previewFile = ref<{ name: string; extension: string } | null>(null);
 
+const leftPanelWidth = ref(450);
+const isResizing = ref(false);
+
+function startResize() {
+  isResizing.value = true;
+  document.addEventListener('mousemove', handleResize);
+  document.addEventListener('mouseup', stopResize);
+}
+
+function handleResize(event: MouseEvent) {
+  if (!isResizing.value) return;
+
+  // Limit the minimum and maximum width
+  const newWidth = Math.max(200, Math.min(800, event.clientX));
+  leftPanelWidth.value = newWidth;
+}
+
+function stopResize() {
+  isResizing.value = false;
+  document.removeEventListener('mousemove', handleResize);
+  document.removeEventListener('mouseup', stopResize);
+}
+
 async function createSubfolder() {
   if (!newFolderName.value || !currentFolder.value?.id) return;
 
@@ -257,7 +280,7 @@ onMounted(() => {
 
       <template v-else>
         <!-- Left Panel -->
-        <v-sheet width="450" class="flex-shrink-0 overflow-y-auto">
+        <v-sheet :width="leftPanelWidth" class="flex-shrink-0 overflow-y-auto position-relative">
           <v-list density="compact">
             <template v-for="folder in rootFolders" :key="folder.id">
               <v-list-item>
@@ -277,13 +300,9 @@ onMounted(() => {
                       </v-list-item>
                       <v-list-item @click="confirmDelete(folder)">
                         <template #prepend>
-                          <v-icon color="error">
-                            mdi-delete
-                          </v-icon>
+                          <v-icon color="error">mdi-delete</v-icon>
                         </template>
-                        <v-list-item-title class="text-error">
-                          Delete
-                        </v-list-item-title>
+                        <v-list-item-title class="text-error">Delete</v-list-item-title>
                       </v-list-item>
                     </v-list>
                   </v-menu>
@@ -291,6 +310,7 @@ onMounted(() => {
               </v-list-item>
             </template>
           </v-list>
+          <div class="resize-handle" @mousedown="startResize" />
         </v-sheet>
 
         <!-- Divider -->
@@ -602,5 +622,25 @@ onMounted(() => {
 .preview-iframe {
   height: 100%;
   width: 100%;
+}
+
+.position-relative {
+  position: relative;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background-color: rgb(var(--v-theme-primary));
 }
 </style>
