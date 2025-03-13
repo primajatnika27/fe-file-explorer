@@ -16,11 +16,11 @@ export interface Folder {
   files: File[];
 }
 
-export interface ExplorerResponse {
+export interface ExplorerResponse<T = Folder[]> {
   status: number;
   success: boolean;
   message: string;
-  data: Folder[];
+  data: T;
 }
 
 export interface ExplorerItemProps {
