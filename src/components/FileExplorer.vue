@@ -79,6 +79,8 @@ const isResizing = ref(false);
 
 const searchQuery = ref("");
 
+const expandedFolders = ref<string[]>([]);
+
 const filteredContent = computed(() => {
   if (!currentFolder.value || !searchQuery.value)
     return {
@@ -137,7 +139,8 @@ async function createSubfolder() {
     );
     dialog.value = false;
     newFolderName.value = "";
-    findFolderById(currentFolder.value.id);
+    await fetchFolders();
+    await findFolderById(currentFolder.value.id);
   } catch (err) {
     dialogError.value =
       err instanceof Error ? err.message : "Failed to create folder";
@@ -303,6 +306,15 @@ async function previewFileContent(file: {
   }
 }
 
+function toggleFolder(folderId: string) {
+  const index = expandedFolders.value.indexOf(folderId);
+  if (index === -1) {
+    expandedFolders.value.push(folderId);
+  } else {
+    expandedFolders.value.splice(index, 1);
+  }
+}
+
 onMounted(() => {
   fetchFolders();
 });
@@ -332,45 +344,87 @@ onMounted(() => {
         >
           <v-list density="compact">
             <template v-for="folder in rootFolders" :key="folder.id">
-              <v-list-item>
+              <div>
                 <explorer-item
                   :name="folder.name"
                   :is-folder="true"
                   :is-selected="selectedFolder === folder.id"
+                  :has-children="folder.subFolders.length > 0"
+                  :is-expanded="expandedFolders.includes(folder.id)"
+                  :show-chevron="true"
                   @click="handleFolderClick(folder.id)"
+                  @toggle="toggleFolder(folder.id)"
                 />
-                <template #append>
-                  <v-menu>
-                    <template #activator="{ props }">
-                      <v-btn
-                        icon="mdi-dots-vertical"
-                        variant="text"
-                        size="small"
-                        v-bind="props"
-                        @click.stop
-                      />
-                    </template>
-                    <v-list>
-                      <v-list-item @click="startRename(folder)">
-                        <template #prepend>
-                          <v-icon>mdi-pencil</v-icon>
-                        </template>
-                        <v-list-item-title>Rename</v-list-item-title>
-                      </v-list-item>
-                      <v-list-item @click="confirmDelete(folder)">
-                        <template #prepend>
-                          <v-icon color="error">
-                            mdi-delete
-                          </v-icon>
-                        </template>
-                        <v-list-item-title class="text-error">
-                          Delete
-                        </v-list-item-title>
-                      </v-list-item>
-                    </v-list>
-                  </v-menu>
-                </template>
-              </v-list-item>
+                <v-menu location="end">
+                  <template #activator="{ props }">
+                    <v-btn
+                      icon="mdi-dots-vertical"
+                      variant="text"
+                      size="small"
+                      v-bind="props"
+                      class="folder-menu-btn"
+                      @click.stop
+                    />
+                  </template>
+                  <v-list>
+                    <v-list-item @click="startRename(folder)">
+                      <template #prepend>
+                        <v-icon>mdi-pencil</v-icon>
+                      </template>
+                      <v-list-item-title>Rename</v-list-item-title>
+                    </v-list-item>
+                    <v-list-item @click="confirmDelete(folder)">
+                      <template #prepend>
+                        <v-icon color="error">mdi-delete</v-icon>
+                      </template>
+                      <v-list-item-title class="text-error"
+                        >Delete</v-list-item-title
+                      >
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
+                <!-- Nested folders -->
+                <div v-if="expandedFolders.includes(folder.id)" class="ml-8">
+                  <template
+                    v-for="subFolder in folder.subFolders"
+                    :key="subFolder.id"
+                  >
+                    <explorer-item
+                      :name="subFolder.name"
+                      :is-folder="true"
+                      :is-selected="selectedItem === subFolder.id"
+                      :has-children="subFolder.subFolders?.length > 0"
+                      :is-expanded="expandedFolders.includes(subFolder.id)"
+                      :show-chevron="true"
+                      @click="handleItemClick(subFolder.id)"
+                      @toggle="toggleFolder(subFolder.id)"
+                    />
+                    <!-- Second level -->
+                    <div
+                      v-if="expandedFolders.includes(subFolder.id)"
+                      class="ml-8"
+                    >
+                      <template
+                        v-for="subSubFolder in subFolder.subFolders"
+                        :key="subSubFolder.id"
+                      >
+                        <explorer-item
+                          :name="subSubFolder.name"
+                          :is-folder="true"
+                          :is-selected="selectedItem === subSubFolder.id"
+                          :has-children="subSubFolder.subFolders?.length > 0"
+                          :is-expanded="
+                            expandedFolders.includes(subSubFolder.id)
+                          "
+                          :show-chevron="true"
+                          @click="handleItemClick(subSubFolder.id)"
+                          @toggle="toggleFolder(subSubFolder.id)"
+                        />
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
             </template>
           </v-list>
           <div class="resize-handle" @mousedown="startResize" />
@@ -460,6 +514,7 @@ onMounted(() => {
                       :name="subFolder.name"
                       :is-folder="true"
                       :is-selected="selectedItem === subFolder.id"
+                      :show-chevron="false"
                       @click="handleItemClick(subFolder.id)"
                     />
                     <template #append>
@@ -503,6 +558,7 @@ onMounted(() => {
                       :name="`${file.name}.${file.extension}`"
                       :size="file.size"
                       :is-selected="selectedItem === file.id"
+                      :show-chevron="false"
                       @click="previewFileContent(file)"
                     />
                     <template #append>
@@ -782,6 +838,18 @@ onMounted(() => {
 
 .cursor-pointer:hover {
   text-decoration: underline;
+}
+
+.folder-menu-btn {
+  opacity: 0;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.explorer-item:hover .folder-menu-btn {
+  opacity: 1;
 }
 
 .v-list {
