@@ -9,7 +9,9 @@ declare module 'vue' {
   export interface GlobalComponents {
     ExplorerItem: typeof import('./src/components/ExplorerItem.vue')['default']
     ExplorerToolbar: typeof import('./src/components/ExplorerToolbar.vue')['default']
+    FileDialogs: typeof import('./src/components/dialogs/FileDialogs.vue')['default']
     FileExplorer: typeof import('./src/components/FileExplorer.vue')['default']
+    FolderDialogs: typeof import('./src/components/dialogs/FolderDialogs.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

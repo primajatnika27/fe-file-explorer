@@ -1,33 +1,44 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { explorerService } from '../services/api';
+import { ref } from "vue";
+import { explorerService } from "../services/api";
 
 defineProps<{
   loading?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'refresh'): void;
+  (e: "refresh"): void;
+  (e: "search", query: string): void;
 }>();
 
 const dialog = ref(false);
-const newFolderName = ref('');
+const newFolderName = ref("");
 const isCreating = ref(false);
-const error = ref('');
+const error = ref("");
+const searchQuery = ref("");
+
+function handleSearchInput() {
+  emit("search", searchQuery.value);
+}
+
+function handleRefresh() {
+  window.location.reload();
+}
 
 async function createFolder() {
   if (!newFolderName.value) return;
 
   isCreating.value = true;
-  error.value = '';
+  error.value = "";
 
   try {
     await explorerService.createFolder(newFolderName.value);
     dialog.value = false;
-    newFolderName.value = '';
-    emit('refresh');
+    newFolderName.value = "";
+    emit("refresh");
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to create folder';
+    error.value =
+      err instanceof Error ? err.message : "Failed to create folder";
   } finally {
     isCreating.value = false;
   }
@@ -37,15 +48,33 @@ async function createFolder() {
 <template>
   <div class="explorer-toolbar">
     <v-toolbar density="compact" color="surface-variant" elevation="1">
-      <v-btn prepend-icon="mdi-folder-plus" variant="text" @click="dialog = true">
+      <v-btn
+        prepend-icon="mdi-folder-plus"
+        variant="text"
+        @click="dialog = true"
+      >
         New folder
       </v-btn>
-      <v-btn prepend-icon="mdi-refresh" variant="text" @click="emit('refresh')" :loading="loading">
+      <v-btn
+        prepend-icon="mdi-refresh"
+        variant="text"
+        @click="handleRefresh"
+        :loading="loading"
+      >
         Refresh
       </v-btn>
       <v-spacer />
-      <v-text-field density="compact" hide-details placeholder="Search files" prepend-inner-icon="mdi-magnify"
-        variant="solo-filled" class="mx-2" style="max-width: 300px" />
+      <v-text-field
+        v-model="searchQuery"
+        density="compact"
+        hide-details
+        placeholder="Search files"
+        prepend-inner-icon="mdi-magnify"
+        variant="solo-filled"
+        class="mx-2"
+        style="max-width: 300px;"
+        @input="handleSearchInput"
+      />
     </v-toolbar>
 
     <!-- New Folder Dialog -->
@@ -53,13 +82,24 @@ async function createFolder() {
       <v-card>
         <v-card-title>Create New Folder</v-card-title>
         <v-card-text>
-          <v-text-field v-model="newFolderName" label="Folder Name" :error-messages="error"
-            @keyup.enter="createFolder"></v-text-field>
+          <v-text-field
+            v-model="newFolderName"
+            label="Folder Name"
+            :error-messages="error"
+            @keyup.enter="createFolder"
+          />
         </v-card-text>
         <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="dialog = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="isCreating" :disabled="!newFolderName" @click="createFolder">
+          <v-spacer />
+          <v-btn color="grey" variant="text" @click="dialog = false"
+            >Cancel</v-btn
+          >
+          <v-btn
+            color="primary"
+            :loading="isCreating"
+            :disabled="!newFolderName"
+            @click="createFolder"
+          >
             Create
           </v-btn>
         </v-card-actions>

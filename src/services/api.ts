@@ -1,31 +1,13 @@
 import type { ExplorerResponse, Folder } from "../types/explorer";
-
-const API_BASE_URL = "http://localhost:3000/api/v1";
+import { fetchWithError } from "../utils/fetchUtils";
+import { API_BASE_URL } from "../config/api";
 
 class ExplorerService {
-  private async fetchWithError<T = Folder[]>(
-    url: string,
-    options?: RequestInit
-  ): Promise<ExplorerResponse<T>> {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  }
-
   async getFolders(): Promise<ExplorerResponse<Folder[]>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/folders/root`);
+      const data = await fetchWithError<Folder[]>(
+        `${API_BASE_URL}/folders/root`
+      );
       return data;
     } catch (error) {
       console.error("Error fetching folders:", error);
@@ -35,7 +17,7 @@ class ExplorerService {
 
   async getFolderDetail(id: string): Promise<ExplorerResponse<Folder>> {
     try {
-      const data = await this.fetchWithError<Folder>(
+      const data = await fetchWithError<Folder>(
         `${API_BASE_URL}/folders/${id}`
       );
       return data;
@@ -48,9 +30,9 @@ class ExplorerService {
   async createFolder(
     name: string,
     parentId?: string
-  ): Promise<ExplorerResponse> {
+  ): Promise<ExplorerResponse<void>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/folders`, {
+      const data = await fetchWithError<void>(`${API_BASE_URL}/folders`, {
         method: "POST",
         body: JSON.stringify({ name, ...(parentId ? { parentId } : {}) }),
       });
@@ -61,9 +43,9 @@ class ExplorerService {
     }
   }
 
-  async deleteFolder(id: string): Promise<ExplorerResponse> {
+  async deleteFolder(id: string): Promise<ExplorerResponse<void>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/folders/${id}`, {
+      const data = await fetchWithError<void>(`${API_BASE_URL}/folders/${id}`, {
         method: "DELETE",
       });
       return data;
@@ -73,9 +55,12 @@ class ExplorerService {
     }
   }
 
-  async renameFolder(id: string, name: string): Promise<ExplorerResponse> {
+  async renameFolder(
+    id: string,
+    name: string
+  ): Promise<ExplorerResponse<void>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/folders/${id}`, {
+      const data = await fetchWithError<void>(`${API_BASE_URL}/folders/${id}`, {
         method: "PUT",
         body: JSON.stringify({ name }),
       });
@@ -86,16 +71,17 @@ class ExplorerService {
     }
   }
 
-  async uploadFile(folderId: string, file: File): Promise<ExplorerResponse> {
+  async uploadFile(
+    folderId: string,
+    file: File
+  ): Promise<ExplorerResponse<void>> {
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      // Direct fetch call instead of using fetchWithError to avoid Content-Type override
       const response = await fetch(`${API_BASE_URL}/files/upload/${folderId}`, {
         method: "POST",
         body: formData,
-        // Don't set any headers, let browser set the correct multipart/form-data with boundary
       });
 
       if (!response.ok) {
@@ -110,9 +96,9 @@ class ExplorerService {
     }
   }
 
-  async deleteFile(id: string): Promise<ExplorerResponse> {
+  async deleteFile(id: string): Promise<ExplorerResponse<void>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/files/${id}`, {
+      const data = await fetchWithError<void>(`${API_BASE_URL}/files/${id}`, {
         method: "DELETE",
       });
       return data;
@@ -122,9 +108,9 @@ class ExplorerService {
     }
   }
 
-  async renameFile(id: string, name: string): Promise<ExplorerResponse> {
+  async renameFile(id: string, name: string): Promise<ExplorerResponse<void>> {
     try {
-      const data = await this.fetchWithError(`${API_BASE_URL}/files/${id}`, {
+      const data = await fetchWithError<void>(`${API_BASE_URL}/files/${id}`, {
         method: "PUT",
         body: JSON.stringify({ name }),
       });
@@ -137,7 +123,7 @@ class ExplorerService {
 
   async getFileUrl(id: string): Promise<ExplorerResponse<{ url: string }>> {
     try {
-      const data = await this.fetchWithError<{ url: string }>(
+      const data = await fetchWithError<{ url: string }>(
         `${API_BASE_URL}/files/url/${id}`
       );
       return data;

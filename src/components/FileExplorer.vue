@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { onMounted } from "vue";
 import ExplorerItem from "./ExplorerItem.vue";
 import ExplorerToolbar from "./ExplorerToolbar.vue";
@@ -29,7 +29,11 @@ const dialogError = ref("");
 // Delete Folder Dialog
 const deleteDialog = ref(false);
 const isDeleting = ref(false);
-const folderToDelete = ref<{ id: string; name: string } | null>(null);
+const folderToDelete = ref<{
+  id: string;
+  name: string;
+  parentId: string | null;
+} | null>(null);
 
 // Rename Folder Dialog
 const renameDialog = ref(false);
@@ -73,10 +77,37 @@ const previewFile = ref<{ name: string; extension: string } | null>(null);
 const leftPanelWidth = ref(450);
 const isResizing = ref(false);
 
+const searchQuery = ref("");
+
+const filteredContent = computed(() => {
+  if (!currentFolder.value || !searchQuery.value)
+    return {
+      subFolders: currentFolder.value?.subFolders || [],
+      files: currentFolder.value?.files || [],
+    };
+
+  const query = searchQuery.value.toLowerCase();
+
+  return {
+    subFolders: currentFolder.value.subFolders.filter((folder) =>
+      folder.name.toLowerCase().includes(query)
+    ),
+    files: currentFolder.value.files.filter(
+      (file) =>
+        file.name.toLowerCase().includes(query) ||
+        file.extension.toLowerCase().includes(query)
+    ),
+  };
+});
+
+function handleSearch(query: string) {
+  searchQuery.value = query;
+}
+
 function startResize() {
   isResizing.value = true;
-  document.addEventListener('mousemove', handleResize);
-  document.addEventListener('mouseup', stopResize);
+  document.addEventListener("mousemove", handleResize);
+  document.addEventListener("mouseup", stopResize);
 }
 
 function handleResize(event: MouseEvent) {
@@ -89,8 +120,8 @@ function handleResize(event: MouseEvent) {
 
 function stopResize() {
   isResizing.value = false;
-  document.removeEventListener('mousemove', handleResize);
-  document.removeEventListener('mouseup', stopResize);
+  document.removeEventListener("mousemove", handleResize);
+  document.removeEventListener("mouseup", stopResize);
 }
 
 async function createSubfolder() {
@@ -123,8 +154,13 @@ async function deleteFolder() {
     await explorerService.deleteFolder(folderToDelete.value.id);
     deleteDialog.value = false;
     folderToDelete.value = null;
-    findFolderById(currentFolder.value?.id || "");
-    fetchFolders();
+
+    if (currentFolder.value?.parentId !== null) {
+      findFolderById(currentFolder.value?.id || "");
+      fetchFolders();
+    } else {
+      window.location.reload();
+    }
   } catch (err) {
     console.error("Failed to delete folder:", err);
   } finally {
@@ -132,7 +168,12 @@ async function deleteFolder() {
   }
 }
 
-function confirmDelete(folder: { id: string; name: string }) {
+function confirmDelete(folder: {
+  id: string;
+  name: string;
+  parentId: string | null;
+}) {
+  console.log("folder", folder);
   folderToDelete.value = folder;
   deleteDialog.value = true;
 }
@@ -149,6 +190,7 @@ async function renameFolder() {
     folderToRename.value = null;
     newName.value = "";
     findFolderById(currentFolder.value?.id || "");
+    fetchFolders();
   } catch (err) {
     renameError.value =
       err instanceof Error ? err.message : "Failed to rename folder";
@@ -269,7 +311,11 @@ onMounted(() => {
 <template>
   <div class="file-explorer">
     <!-- Fixed Toolbar -->
-    <explorer-toolbar :loading="loading" @refresh="fetchFolders" />
+    <explorer-toolbar
+      :loading="loading"
+      @refresh="fetchFolders"
+      @search="handleSearch"
+    />
 
     <!-- Main Content -->
     <div class="explorer-content">
@@ -280,16 +326,29 @@ onMounted(() => {
 
       <template v-else>
         <!-- Left Panel -->
-        <v-sheet :width="leftPanelWidth" class="flex-shrink-0 overflow-y-auto position-relative">
+        <v-sheet
+          :width="leftPanelWidth"
+          class="flex-shrink-0 overflow-y-auto position-relative"
+        >
           <v-list density="compact">
             <template v-for="folder in rootFolders" :key="folder.id">
               <v-list-item>
-                <explorer-item :name="folder.name" :is-folder="true" :is-selected="selectedFolder === folder.id"
-                  @click="handleFolderClick(folder.id)" />
+                <explorer-item
+                  :name="folder.name"
+                  :is-folder="true"
+                  :is-selected="selectedFolder === folder.id"
+                  @click="handleFolderClick(folder.id)"
+                />
                 <template #append>
                   <v-menu>
                     <template #activator="{ props }">
-                      <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" @click.stop />
+                      <v-btn
+                        icon="mdi-dots-vertical"
+                        variant="text"
+                        size="small"
+                        v-bind="props"
+                        @click.stop
+                      />
                     </template>
                     <v-list>
                       <v-list-item @click="startRename(folder)">
@@ -300,9 +359,13 @@ onMounted(() => {
                       </v-list-item>
                       <v-list-item @click="confirmDelete(folder)">
                         <template #prepend>
-                          <v-icon color="error">mdi-delete</v-icon>
+                          <v-icon color="error">
+                            mdi-delete
+                          </v-icon>
                         </template>
-                        <v-list-item-title class="text-error">Delete</v-list-item-title>
+                        <v-list-item-title class="text-error">
+                          Delete
+                        </v-list-item-title>
                       </v-list-item>
                     </v-list>
                   </v-menu>
@@ -322,10 +385,17 @@ onMounted(() => {
             <!-- Breadcrumb Navigation -->
             <v-list-subheader class="d-flex align-center px-4">
               <template v-for="(folder, index) in currentPath" :key="folder.id">
-                <span class="cursor-pointer text-primary" @click="handleFolderClick(folder.id)">
+                <span
+                  class="cursor-pointer text-primary"
+                  @click="handleFolderClick(folder.id)"
+                >
                   {{ folder.name }}
                 </span>
-                <v-icon v-if="index < currentPath.length - 1" size="small" class="mx-1">
+                <v-icon
+                  v-if="index < currentPath.length - 1"
+                  size="small"
+                  class="mx-1"
+                >
                   mdi-chevron-right
                 </v-icon>
               </template>
@@ -335,37 +405,73 @@ onMounted(() => {
               <!-- Action Buttons -->
               <v-list-item>
                 <div class="d-flex gap-2">
-                  <v-btn prepend-icon="mdi-folder-plus" variant="text" class="mb-2" @click="dialog = true">
+                  <v-btn
+                    prepend-icon="mdi-folder-plus"
+                    variant="text"
+                    class="mb-2"
+                    @click="dialog = true"
+                  >
                     New Folder
                   </v-btn>
-                  <v-btn prepend-icon="mdi-upload" variant="text" :loading="isUploading" class="mb-2"
-                    @click="fileInput?.click()">
+                  <v-btn
+                    prepend-icon="mdi-upload"
+                    variant="text"
+                    :loading="isUploading"
+                    class="mb-2"
+                    @click="fileInput?.click()"
+                  >
                     Upload File
                   </v-btn>
-                  <input ref="fileInput" type="file" class="d-none" @change="handleFileUpload" />
+                  <input
+                    ref="fileInput"
+                    type="file"
+                    class="d-none"
+                    @change="handleFileUpload"
+                  />
                 </div>
               </v-list-item>
 
               <!-- Upload Error -->
-              <v-alert v-if="uploadError" type="error" variant="tonal" closable class="mx-4 mb-2"
-                @click:close="uploadError = ''">
+              <v-alert
+                v-if="uploadError"
+                type="error"
+                variant="tonal"
+                closable
+                class="mx-4 mb-2"
+                @click:close="uploadError = ''"
+              >
                 {{ uploadError }}
               </v-alert>
 
               <!-- Show content if exists -->
-              <template v-if="
-                currentFolder.subFolders.length > 0 ||
-                currentFolder.files.length > 0
-              ">
+              <template
+                v-if="
+                  filteredContent.subFolders.length > 0 ||
+                  filteredContent.files.length > 0
+                "
+              >
                 <!-- Sub Folders -->
-                <template v-for="subFolder in currentFolder.subFolders" :key="subFolder.id">
+                <template
+                  v-for="subFolder in filteredContent.subFolders"
+                  :key="subFolder.id"
+                >
                   <v-list-item>
-                    <explorer-item :name="subFolder.name" :is-folder="true" :is-selected="selectedItem === subFolder.id"
-                      @click="handleItemClick(subFolder.id)" />
+                    <explorer-item
+                      :name="subFolder.name"
+                      :is-folder="true"
+                      :is-selected="selectedItem === subFolder.id"
+                      @click="handleItemClick(subFolder.id)"
+                    />
                     <template #append>
                       <v-menu>
                         <template #activator="{ props }">
-                          <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" @click.stop />
+                          <v-btn
+                            icon="mdi-dots-vertical"
+                            variant="text"
+                            size="small"
+                            v-bind="props"
+                            @click.stop
+                          />
                         </template>
                         <v-list>
                           <v-list-item @click="startRename(subFolder)">
@@ -391,14 +497,24 @@ onMounted(() => {
                 </template>
 
                 <!-- Files -->
-                <template v-for="file in currentFolder.files" :key="file.id">
+                <template v-for="file in filteredContent.files" :key="file.id">
                   <v-list-item>
-                    <explorer-item :name="`${file.name}.${file.extension}`" :size="file.size"
-                      :is-selected="selectedItem === file.id" @click="previewFileContent(file)" />
+                    <explorer-item
+                      :name="`${file.name}.${file.extension}`"
+                      :size="file.size"
+                      :is-selected="selectedItem === file.id"
+                      @click="previewFileContent(file)"
+                    />
                     <template #append>
                       <v-menu>
                         <template #activator="{ props }">
-                          <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" @click.stop />
+                          <v-btn
+                            icon="mdi-dots-vertical"
+                            variant="text"
+                            size="small"
+                            v-bind="props"
+                            @click.stop
+                          />
                         </template>
                         <v-list>
                           <v-list-item @click="previewFileContent(file)">
@@ -430,16 +546,38 @@ onMounted(() => {
                 </template>
               </template>
               <!-- Empty state -->
-              <div v-else class="d-flex flex-column align-center justify-center fill-height pa-8">
-                <v-icon icon="mdi-folder-open-outline" size="64" color="grey-lighten-1" class="mb-4" />
-                <span class="text-grey-darken-1 text-body-1">This folder is empty</span>
-                <span class="text-grey text-body-2 mt-1">Add files or folders to see them here</span>
+              <div
+                v-else
+                class="d-flex flex-column align-center justify-center fill-height pa-8"
+              >
+                <v-icon
+                  icon="mdi-folder-open-outline"
+                  size="64"
+                  color="grey-lighten-1"
+                  class="mb-4"
+                />
+                <span class="text-grey-darken-1 text-body-1">
+                  This folder is empty
+                </span>
+                <span class="text-grey text-body-2 mt-1">
+                  Add files or folders to see them here
+                </span>
               </div>
             </template>
 
-            <div v-else class="d-flex flex-column align-center justify-center fill-height pa-8">
-              <v-icon icon="mdi-folder" size="64" color="grey-lighten-1" class="mb-4" />
-              <span class="text-grey-darken-1 text-body-1">Select a folder to view its contents</span>
+            <div
+              v-else
+              class="d-flex flex-column align-center justify-center fill-height pa-8"
+            >
+              <v-icon
+                icon="mdi-folder"
+                size="64"
+                color="grey-lighten-1"
+                class="mb-4"
+              />
+              <span class="text-grey-darken-1 text-body-1">
+                Select a folder to view its contents
+              </span>
             </div>
           </v-list>
         </v-sheet>
@@ -451,15 +589,24 @@ onMounted(() => {
       <v-card>
         <v-card-title>Create New Subfolder</v-card-title>
         <v-card-text>
-          <v-text-field v-model="newFolderName" label="Folder Name" :error-messages="dialogError"
-            @keyup.enter="createSubfolder" />
+          <v-text-field
+            v-model="newFolderName"
+            label="Folder Name"
+            :error-messages="dialogError"
+            @keyup.enter="createSubfolder"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn color="grey" variant="text" @click="dialog = false">
             Cancel
           </v-btn>
-          <v-btn color="primary" :loading="isCreating" :disabled="!newFolderName" @click="createSubfolder">
+          <v-btn
+            color="primary"
+            :loading="isCreating"
+            :disabled="!newFolderName"
+            @click="createSubfolder"
+          >
             Create
           </v-btn>
         </v-card-actions>
@@ -481,7 +628,12 @@ onMounted(() => {
           <v-btn color="grey" variant="text" @click="deleteDialog = false">
             Cancel
           </v-btn>
-          <v-btn color="error" variant="tonal" :loading="isDeleting" @click="deleteFolder">
+          <v-btn
+            color="error"
+            variant="tonal"
+            :loading="isDeleting"
+            @click="deleteFolder"
+          >
             Delete
           </v-btn>
         </v-card-actions>
@@ -493,14 +645,24 @@ onMounted(() => {
       <v-card>
         <v-card-title>Rename Folder</v-card-title>
         <v-card-text>
-          <v-text-field v-model="newName" label="New Name" :error-messages="renameError" @keyup.enter="renameFolder" />
+          <v-text-field
+            v-model="newName"
+            label="New Name"
+            :error-messages="renameError"
+            @keyup.enter="renameFolder"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn color="grey" variant="text" @click="renameDialog = false">
             Cancel
           </v-btn>
-          <v-btn color="primary" :loading="isRenaming" :disabled="!newName" @click="renameFolder">
+          <v-btn
+            color="primary"
+            :loading="isRenaming"
+            :disabled="!newName"
+            @click="renameFolder"
+          >
             Rename
           </v-btn>
         </v-card-actions>
@@ -512,15 +674,24 @@ onMounted(() => {
       <v-card>
         <v-card-title>Rename File</v-card-title>
         <v-card-text>
-          <v-text-field v-model="newFileName" :label="'New Name (.' + (fileToRename?.extension || '') + ')'"
-            :error-messages="renameFileError" @keyup.enter="renameFile" />
+          <v-text-field
+            v-model="newFileName"
+            :label="'New Name (.' + (fileToRename?.extension || '') + ')'"
+            :error-messages="renameFileError"
+            @keyup.enter="renameFile"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn color="grey" variant="text" @click="renameFileDialog = false">
             Cancel
           </v-btn>
-          <v-btn color="primary" :loading="isRenamingFile" :disabled="!newFileName" @click="renameFile">
+          <v-btn
+            color="primary"
+            :loading="isRenamingFile"
+            :disabled="!newFileName"
+            @click="renameFile"
+          >
             Rename
           </v-btn>
         </v-card-actions>
@@ -543,7 +714,12 @@ onMounted(() => {
           <v-btn color="grey" variant="text" @click="deleteFileDialog = false">
             Cancel
           </v-btn>
-          <v-btn color="error" variant="tonal" :loading="isDeletingFile" @click="deleteFile">
+          <v-btn
+            color="error"
+            variant="tonal"
+            :loading="isDeletingFile"
+            @click="deleteFile"
+          >
             Delete
           </v-btn>
         </v-card-actions>
@@ -555,13 +731,23 @@ onMounted(() => {
       <v-card class="preview-dialog">
         <v-card-title class="d-flex justify-space-between align-center">
           <span>{{ previewFile?.name }}.{{ previewFile?.extension }}</span>
-          <v-btn icon="mdi-close" variant="text" @click="previewDialog = false" />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="previewDialog = false"
+          />
         </v-card-title>
         <v-card-text class="preview-content">
-          <div v-if="isLoadingPreview" class="d-flex justify-center align-center pa-4">
+          <div
+            v-if="isLoadingPreview"
+            class="d-flex justify-center align-center pa-4"
+          >
             <v-progress-circular indeterminate />
           </div>
-          <div v-else-if="previewError" class="d-flex justify-center align-center pa-4">
+          <div
+            v-else-if="previewError"
+            class="d-flex justify-center align-center pa-4"
+          >
             <v-alert type="error" variant="tonal">
               {{ previewError }}
             </v-alert>
