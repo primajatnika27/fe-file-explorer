@@ -159,10 +159,10 @@ async function deleteFolder() {
     folderToDelete.value = null;
 
     if (currentFolder.value?.parentId !== null) {
+      window.location.reload();
+    } else {
       findFolderById(currentFolder.value?.id || "");
       fetchFolders();
-    } else {
-      window.location.reload();
     }
   } catch (err) {
     console.error("Failed to delete folder:", err);
@@ -344,7 +344,7 @@ onMounted(() => {
         >
           <v-list density="compact">
             <template v-for="folder in rootFolders" :key="folder.id">
-              <div>
+              <div class="d-flex align-center">
                 <explorer-item
                   :name="folder.name"
                   :is-folder="true"
@@ -352,6 +352,7 @@ onMounted(() => {
                   :has-children="folder.subFolders.length > 0"
                   :is-expanded="expandedFolders.includes(folder.id)"
                   :show-chevron="true"
+                  class="flex-grow-1"
                   @click="handleFolderClick(folder.id)"
                   @toggle="toggleFolder(folder.id)"
                 />
@@ -383,12 +384,15 @@ onMounted(() => {
                     </v-list-item>
                   </v-list>
                 </v-menu>
-                <!-- Nested folders -->
-                <div v-if="expandedFolders.includes(folder.id)" class="ml-8">
-                  <template
-                    v-for="subFolder in folder.subFolders"
-                    :key="subFolder.id"
-                  >
+              </div>
+
+              <!-- Nested folders -->
+              <div v-if="expandedFolders.includes(folder.id)" class="ml-8">
+                <template
+                  v-for="subFolder in folder.subFolders"
+                  :key="subFolder.id"
+                >
+                  <div class="d-flex align-center">
                     <explorer-item
                       :name="subFolder.name"
                       :is-folder="true"
@@ -396,18 +400,50 @@ onMounted(() => {
                       :has-children="subFolder.subFolders?.length > 0"
                       :is-expanded="expandedFolders.includes(subFolder.id)"
                       :show-chevron="true"
+                      class="flex-grow-1"
                       @click="handleItemClick(subFolder.id)"
                       @toggle="toggleFolder(subFolder.id)"
                     />
-                    <!-- Second level -->
-                    <div
-                      v-if="expandedFolders.includes(subFolder.id)"
-                      class="ml-8"
+                    <v-menu location="end">
+                      <template #activator="{ props }">
+                        <v-btn
+                          icon="mdi-dots-vertical"
+                          variant="text"
+                          size="small"
+                          v-bind="props"
+                          class="folder-menu-btn"
+                          @click.stop
+                        />
+                      </template>
+                      <v-list>
+                        <v-list-item @click="startRename(subFolder)">
+                          <template #prepend>
+                            <v-icon>mdi-pencil</v-icon>
+                          </template>
+                          <v-list-item-title>Rename</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item @click="confirmDelete(subFolder)">
+                          <template #prepend>
+                            <v-icon color="error">mdi-delete</v-icon>
+                          </template>
+                          <v-list-item-title class="text-error"
+                            >Delete</v-list-item-title
+                          >
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
+                  </div>
+
+                  <!-- Second level -->
+                  <div
+                    v-if="expandedFolders.includes(subFolder.id)"
+                    class="ml-8"
+                  >
+                    <template
+                      v-for="subSubFolder in subFolder.subFolders"
+                      :key="subSubFolder.id"
                     >
-                      <template
-                        v-for="subSubFolder in subFolder.subFolders"
-                        :key="subSubFolder.id"
-                      >
+                      <div class="d-flex align-center">
                         <explorer-item
                           :name="subSubFolder.name"
                           :is-folder="true"
@@ -417,13 +453,42 @@ onMounted(() => {
                             expandedFolders.includes(subSubFolder.id)
                           "
                           :show-chevron="true"
+                          class="flex-grow-1"
                           @click="handleItemClick(subSubFolder.id)"
                           @toggle="toggleFolder(subSubFolder.id)"
                         />
-                      </template>
-                    </div>
-                  </template>
-                </div>
+                        <v-menu location="end">
+                          <template #activator="{ props }">
+                            <v-btn
+                              icon="mdi-dots-vertical"
+                              variant="text"
+                              size="small"
+                              v-bind="props"
+                              class="folder-menu-btn"
+                              @click.stop
+                            />
+                          </template>
+                          <v-list>
+                            <v-list-item @click="startRename(subSubFolder)">
+                              <template #prepend>
+                                <v-icon>mdi-pencil</v-icon>
+                              </template>
+                              <v-list-item-title>Rename</v-list-item-title>
+                            </v-list-item>
+                            <v-list-item @click="confirmDelete(subSubFolder)">
+                              <template #prepend>
+                                <v-icon color="error">mdi-delete</v-icon>
+                              </template>
+                              <v-list-item-title class="text-error"
+                                >Delete</v-list-item-title
+                              >
+                            </v-list-item>
+                          </v-list>
+                        </v-menu>
+                      </div>
+                    </template>
+                  </div>
+                </template>
               </div>
             </template>
           </v-list>
@@ -842,14 +907,16 @@ onMounted(() => {
 
 .folder-menu-btn {
   opacity: 0;
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+  margin-right: 4px;
 }
 
-.explorer-item:hover .folder-menu-btn {
+.d-flex:hover .folder-menu-btn {
   opacity: 1;
+}
+
+/* Optional: add transition for smooth appearance */
+.folder-menu-btn {
+  transition: opacity 0.2s ease-in-out;
 }
 
 .v-list {
