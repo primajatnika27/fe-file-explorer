@@ -51,7 +51,7 @@ bun install
 3. Set up environment variables:
 Create a `.env` file in the root directory and add necessary API configurations:
 ```env
-VITE_API_BASE_URL=your_api_base_url
+VITE_API_URL=your_api_base_url
 ```
 
 4. Start the development server:

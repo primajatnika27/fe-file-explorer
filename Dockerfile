@@ -18,6 +18,12 @@ RUN bun install
 # Copy the rest of the application
 COPY . .
 
+# Build arguments for environment variables
+ARG VITE_API_URL
+
+# Set environment variables for build
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application
 RUN bun run build:prod
 
@@ -26,6 +32,9 @@ FROM nginx:alpine
 
 # Copy built assets from build stage
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
